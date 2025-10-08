@@ -59,7 +59,7 @@ div.stButton > button {
     color: #0e0e0e !important;
     border: none !important;
     border-radius: 12px !important;
-    font-weight: 500 !important;
+    font-weight: 600 !important;
     font-size: 1rem !important;
     padding: 0.5rem 1.5rem !important;
     transition: all 0.25s ease;
@@ -105,7 +105,7 @@ div[data-testid="stSlider"] > div > div > div {
 a.custom-link {
     color: #ffb6c1;
     text-decoration: none;
-    font-weight: 400;
+    font-weight: 300 !important;
 }
 
 a.custom-link:hover {
@@ -135,7 +135,7 @@ st.markdown("""
 chron_file = st.file_uploader("Upload Chronologie PDF", type=["pdf"])
 break_file = st.file_uploader("Upload Previous Breakdown DOCX (template)", type=["docx"])
 
-dev_mode = st.secrets.get("general", {}).get("dev_mode", False)
+dev_mode = st.secrets.get("dev_mode", True)
 
 if dev_mode:
     c1, c2, c3 = st.columns([1, 1, 2])
