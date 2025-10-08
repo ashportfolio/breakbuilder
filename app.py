@@ -14,7 +14,8 @@ import datetime
 st.set_page_config(page_title="Makeup & SFX Breakdown", page_icon="💋", layout="wide")
 
 # STYLING
-st.markdown("""
+if dev_mode:
+    st.markdown("""
 <style>
 /* Overall page styling */
 body, .stApp {
@@ -118,7 +119,8 @@ a.custom-link:hover {
 st.title("🎬 Makeup & SFX Breakdown Builder")
 st.caption(f"Build loaded at: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-st.markdown("""
+if dev_mode:
+    st.markdown("""
 <div style='
     background-color: transparent;
     color: #ffb6c1;
@@ -448,7 +450,8 @@ if chron_file and break_file and st.button("Generate Breakdown"):
 
     if changelog:
         st.subheader("📝 Change Log (Preview)")
-        st.text("\n".join(changelog))
+        if dev_mode:
+            st.text("\n".join(changelog))
 
     if debug:
         st.subheader("🐛 Debug Info")
@@ -462,17 +465,21 @@ if chron_file and break_file and st.button("Generate Breakdown"):
     if super_debug:
         st.subheader("🔬 Super Debug")
         for p in dbg_pages[:3]:
-            st.markdown(f"**Page {p['page']}**")
+            if dev_mode:
+                st.markdown(f"**Page {p['page']}**")
             with st.expander("Lines (first ~40)", expanded=False):
                 for i, t in enumerate(p["lines_first40"]):
-                    st.write(f"{i:02d}: {t}")
+                    if dev_mode:
+                        st.write(f"{i:02d}: {t}")
             with st.expander("Detected headers", expanded=True):
-                st.write(p["headers"])
+                if dev_mode:
+                    st.write(p["headers"])
 #else:
 #    st.info("Upload both files, then press **Generate Breakdown**.")
 
 # Footer (placed at bottom)
-st.markdown("""
+if dev_mode:
+    st.markdown("""
 <div class="custom-footer">
 Built with ❤️ by <a href="https://ashwinanandani.com" class="custom-link" target="_blank">a fan of the show</a> — 
 contact via WhatsApp for big issues, treat with love, and stay kind.
