@@ -123,7 +123,7 @@ st.markdown("""
     background-color: transparent;
     color: #ffb6c1;
     font-family: "Montserrat", sans-serif;
-    font-weight: 500;
+    font-weight: 600;
     text-align: left;
     margin-top: 0.5rem;
     margin-bottom: 1.2rem;
@@ -135,8 +135,10 @@ st.markdown("""
 chron_file = st.file_uploader("Upload Chronologie PDF", type=["pdf"])
 break_file = st.file_uploader("Upload Previous Breakdown DOCX (template)", type=["docx"])
 
-if st.secrets.get("dev_mode", False):
-    c1, c2, c3 = st.columns([1,1,2])
+dev_mode = st.secrets.get("general", {}).get("dev_mode", False)
+
+if dev_mode:
+    c1, c2, c3 = st.columns([1, 1, 2])
     with c1:
         debug = st.checkbox("Debug Info")
     with c2:
@@ -146,7 +148,7 @@ if st.secrets.get("dev_mode", False):
 else:
     debug = False
     super_debug = False
-    cast_split_ratio = 0.61
+    cast_split_ratio = 0.61  # default
 
 # ──────────────────────────────────────────────────────────────
 # Regex
@@ -432,7 +434,7 @@ if chron_file and break_file and st.button("Generate Breakdown"):
     new_doc.save(out_buffer)
     out_buffer.seek(0)
 
-    st.success("✅ Breakdown built successfully!")
+    st.success("✅ Breakdown is ready! Click below to download:")
     st.download_button(
         "📥 Download New Breakdown",
         data=out_buffer,
