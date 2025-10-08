@@ -141,7 +141,7 @@ except:
     dev_mode = True
 
 if dev_mode:
-else:
+    pass
 
 # ──────────────────────────────────────────────────────────────
 # Regex
