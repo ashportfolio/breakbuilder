@@ -135,9 +135,13 @@ st.markdown("""
 chron_file = st.file_uploader("Upload Chronologie PDF", type=["pdf"])
 break_file = st.file_uploader("Upload Previous Breakdown DOCX (template)", type=["docx"])
 
-debug = False
-super_debug = False
-cast_split_ratio = 0.61
+c1, c2, c3 = st.columns([1,1,2])
+with c1:
+    debug = st.checkbox("Debug Info")
+with c2:
+    super_debug = st.checkbox("Super Debug (lines & headers)")
+with c3:
+    cast_split_ratio = st.slider("Cast column split (% of page width)", 0.55, 0.85, 0.61, 0.01)
 
 # ──────────────────────────────────────────────────────────────
 # Regex
@@ -438,26 +442,9 @@ if chron_file and break_file and st.button("Generate Breakdown"):
 
     if debug:
         st.subheader("🐛 Debug Info")
-        st.json({
-            "rollen_map_size": len(rollen_map),
-            "parsed_rows": len(rows),
-            "changes_detected": len(changelog),
-            "cast_split_ratio_used": cast_split_ratio
-        })
-
-    if super_debug:
-        st.subheader("🔬 Super Debug")
-        for p in dbg_pages[:3]:
-            st.markdown(f"**Page {p['page']}**")
-            with st.expander("Lines (first ~40)", expanded=False):
-                for i, t in enumerate(p["lines_first40"]):
-                    st.write(f"{i:02d}: {t}")
-            with st.expander("Detected headers", expanded=True):
-                st.write(p["headers"])
 #else:
 #    st.info("Upload both files, then press **Generate Breakdown**.")
 
-# Footer (placed at bottom)
 st.markdown("""
 <div class="custom-footer">
 Built with ❤️ by <a href="https://ashwinanandani.com" class="custom-link" target="_blank">a fan of the show</a> — 
