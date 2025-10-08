@@ -135,13 +135,7 @@ st.markdown("""
 chron_file = st.file_uploader("Upload Chronologie PDF", type=["pdf"])
 break_file = st.file_uploader("Upload Previous Breakdown DOCX (template)", type=["docx"])
 
-c1, c2, c3 = st.columns([1,1,2])
-with c1:
-    debug = st.checkbox("Debug Info")
-with c2:
-    super_debug = st.checkbox("Super Debug (lines & headers)")
-with c3:
-    cast_split_ratio = st.slider("Cast column split (% of page width)", 0.55, 0.85, 0.61, 0.01)
+cast_split_ratio = 0.61  # Default fallback", 0.55, 0.85, 0.61, 0.01)
 
 # ──────────────────────────────────────────────────────────────
 # Regex
@@ -435,13 +429,7 @@ if chron_file and break_file and st.button("Generate Breakdown"):
         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         use_container_width=True
     )
-
-    if changelog:
-        st.subheader("📝 Change Log (Preview)")
-        st.text("\n".join(changelog))
-
-    if debug:
-        st.subheader("🐛 Debug Info")
+    
 #else:
 #    st.info("Upload both files, then press **Generate Breakdown**.")
 
