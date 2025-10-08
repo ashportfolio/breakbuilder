@@ -134,12 +134,11 @@ st.markdown("""
 
 chron_file = st.file_uploader("Upload Chronologie PDF", type=["pdf"])
 break_file = st.file_uploader("Upload Previous Breakdown DOCX (template)", type=["docx"])
+
 debug = False
 super_debug = False
-cast_split_ratio = 0.61  # default when debug UI is removed
+cast_split_ratio = 0.61
 
-with c1:
-with c2:
 # ──────────────────────────────────────────────────────────────
 # Regex
 # ──────────────────────────────────────────────────────────────
@@ -369,6 +368,7 @@ if chron_file and break_file and st.button("Generate Breakdown"):
         rollen_map = build_rollen_map(pdf)
         rows, dbg_pages = extract_scene_rows(pdf, rollen_map, cast_split_ratio=cast_split_ratio, super_debug=super_debug)
 
+    st.subheader("🔍 Parsed Row Debug Preview (first 15)")
     st.dataframe(pd.DataFrame([{
         "Day": d, "Scene": s, "Timing": t, "Summary": summary, "Cast": cast
     } for d, s, t, summary, cast in rows[:15]]))
@@ -437,6 +437,7 @@ if chron_file and break_file and st.button("Generate Breakdown"):
         st.text("\n".join(changelog))
 
     if debug:
+        st.subheader("🐛 Debug Info")
         st.json({
             "rollen_map_size": len(rollen_map),
             "parsed_rows": len(rows),
@@ -445,6 +446,7 @@ if chron_file and break_file and st.button("Generate Breakdown"):
         })
 
     if super_debug:
+        st.subheader("🔬 Super Debug")
         for p in dbg_pages[:3]:
             st.markdown(f"**Page {p['page']}**")
             with st.expander("Lines (first ~40)", expanded=False):
