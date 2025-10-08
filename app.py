@@ -367,12 +367,14 @@ def fix_fake_slashes(s: str) -> str:
 # ──────────────────────────────────────────────────────────────
 # MAIN
 # ──────────────────────────────────────────────────────────────
-if chron_file and break_file:
-    if st.button("Generate Breakdown"):
+# ──────────────────────────────────────────────────────────────
+# MAIN
+# ──────────────────────────────────────────────────────────────
+if chron_file and break_file and st.button("Generate Breakdown"):
     with pdfplumber.open(chron_file) as pdf:
         rollen_map = build_rollen_map(pdf)
         rows, dbg_pages = extract_scene_rows(pdf, rollen_map, cast_split_ratio=cast_split_ratio, super_debug=super_debug)
-
+    # Parsing complete, generating document...
     st.subheader("🔍 Parsed Row Debug Preview (first 15)")
     st.dataframe(pd.DataFrame([{
         "Day": d, "Scene": s, "Timing": t, "Summary": summary, "Cast": cast
