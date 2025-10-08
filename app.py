@@ -135,7 +135,11 @@ st.markdown("""
 chron_file = st.file_uploader("Upload Chronologie PDF", type=["pdf"])
 break_file = st.file_uploader("Upload Previous Breakdown DOCX (template)", type=["docx"])
 
-cast_split_ratio = 0.61  # Default fallback", 0.55, 0.85, 0.61, 0.01)
+c1, c2, c3 = st.columns([1,1,2])
+with c1:
+with c2:
+with c3:
+    cast_split_ratio = st.slider("Cast column split (% of page width)", 0.55, 0.85, 0.61, 0.01)
 
 # ──────────────────────────────────────────────────────────────
 # Regex
@@ -285,16 +289,12 @@ def parse_scene_block(page, lines, start_idx, end_idx, rollen_map, cast_split_ra
 
     return day, scene, timing, summary, cast_text
 
-def extract_scene_rows(pdf, rollen_map, cast_split_ratio=0.61, super_debug=False):
     rows = []
-    dbg_pages = []
     for p_idx, page in enumerate(pdf.pages):
         words = page.extract_words() or []
         line_objs = group_words_into_lines(words, y_round=1)
         headers = find_headers(line_objs)
 
-        if super_debug:
-            dbg_pages.append({
                 "page": p_idx+1,
                 "lines_first40": [L["text"] for L in line_objs[:40]],
                 "headers": headers
@@ -307,7 +307,6 @@ def extract_scene_rows(pdf, rollen_map, cast_split_ratio=0.61, super_debug=False
             )
             rows.append([d, s, t, summary, cast_text])
 
-    return rows, dbg_pages
 
 # ──────────────────────────────────────────────────────────────
 # DOCX helpers
@@ -361,12 +360,13 @@ def fix_fake_slashes(s: str) -> str:
 # ──────────────────────────────────────────────────────────────
 # MAIN
 # ──────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────
+# MAIN
+# ──────────────────────────────────────────────────────────────
 if chron_file and break_file and st.button("Generate Breakdown"):
     with pdfplumber.open(chron_file) as pdf:
         rollen_map = build_rollen_map(pdf)
-        rows, dbg_pages = extract_scene_rows(pdf, rollen_map, cast_split_ratio=cast_split_ratio, super_debug=super_debug)
-
-    st.subheader("🔍 Parsed Row Debug Preview (first 15)")
+    # Parsing complete, generating document...
     st.dataframe(pd.DataFrame([{
         "Day": d, "Scene": s, "Timing": t, "Summary": summary, "Cast": cast
     } for d, s, t, summary, cast in rows[:15]]))
@@ -429,10 +429,28 @@ if chron_file and break_file and st.button("Generate Breakdown"):
         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         use_container_width=True
     )
-    
+
+    if changelog:
+        st.subheader("📝 Change Log (Preview)")
+        st.text("\n".join(changelog))
+
+        st.json({
+            "rollen_map_size": len(rollen_map),
+            "parsed_rows": len(rows),
+            "changes_detected": len(changelog),
+            "cast_split_ratio_used": cast_split_ratio
+        })
+
+            st.markdown(f"**Page {p['page']}**")
+            with st.expander("Lines (first ~40)", expanded=False):
+                for i, t in enumerate(p["lines_first40"]):
+                    st.write(f"{i:02d}: {t}")
+            with st.expander("Detected headers", expanded=True):
+                st.write(p["headers"])
 #else:
 #    st.info("Upload both files, then press **Generate Breakdown**.")
 
+# Footer (placed at bottom)
 st.markdown("""
 <div class="custom-footer">
 Built with ❤️ by <a href="https://ashwinanandani.com" class="custom-link" target="_blank">a fan of the show</a> — 
