@@ -59,7 +59,7 @@ div.stButton > button {
     color: #0e0e0e !important;
     border: none !important;
     border-radius: 12px !important;
-    font-weight: 500 !important;
+    font-weight: 600 !important;
     font-size: 1rem !important;
     padding: 0.5rem 1.5rem !important;
     transition: all 0.25s ease;
@@ -105,7 +105,7 @@ div[data-testid="stSlider"] > div > div > div {
 a.custom-link {
     color: #ffb6c1;
     text-decoration: none;
-    font-weight: 500;
+    font-weight: 300 !important;
 }
 
 a.custom-link:hover {
@@ -123,7 +123,7 @@ st.markdown("""
     background-color: transparent;
     color: #ffb6c1;
     font-family: "Montserrat", sans-serif;
-    font-weight: 500;
+    font-weight: 600;
     text-align: left;
     margin-top: 0.5rem;
     margin-bottom: 1.2rem;
@@ -135,11 +135,13 @@ st.markdown("""
 chron_file = st.file_uploader("Upload Chronologie PDF", type=["pdf"])
 break_file = st.file_uploader("Upload Previous Breakdown DOCX (template)", type=["docx"])
 
-c1, c2, c3 = st.columns([1,1,2])
-with c1:
-with c2:
-with c3:
-    cast_split_ratio = st.slider("Cast column split (% of page width)", 0.55, 0.85, 0.61, 0.01)
+try:
+    dev_mode = st.secrets["dev_mode"].lower() == "true"
+except:
+    dev_mode = True
+
+if dev_mode:
+else:
 
 # ──────────────────────────────────────────────────────────────
 # Regex
@@ -240,7 +242,6 @@ def find_headers(lines):
 # ──────────────────────────────────────────────────────────────
 # Scene block → row
 # ──────────────────────────────────────────────────────────────
-def parse_scene_block(page, lines, start_idx, end_idx, rollen_map, cast_split_ratio):
     header_text = lines[start_idx]["text"]
     m = HEADER_SLASH.search(header_text) or HEADER_SPACE.search(header_text)
     day, scene = (m.group(1), m.group(2)) if m else ("", "")
@@ -268,7 +269,6 @@ def parse_scene_block(page, lines, start_idx, end_idx, rollen_map, cast_split_ra
     for L in lines[start_idx:end_idx]:
         words_in_block.extend(L["words"])
 
-    cast_cutoff = page.width * cast_split_ratio
     right_words = [w for w in words_in_block if w["x0"] >= cast_cutoff]
     right_text = " ".join(w["text"] for w in sorted(right_words, key=lambda w: (w["top"], w["x0"])))
 
@@ -303,7 +303,6 @@ def parse_scene_block(page, lines, start_idx, end_idx, rollen_map, cast_split_ra
         for i, (h_idx, day, scene) in enumerate(headers):
             next_idx = headers[i+1][0] if i+1 < len(headers) else len(line_objs)
             d, s, t, summary, cast_text = parse_scene_block(
-                page, line_objs, h_idx, next_idx, rollen_map, cast_split_ratio
             )
             rows.append([d, s, t, summary, cast_text])
 
@@ -360,13 +359,10 @@ def fix_fake_slashes(s: str) -> str:
 # ──────────────────────────────────────────────────────────────
 # MAIN
 # ──────────────────────────────────────────────────────────────
-# ──────────────────────────────────────────────────────────────
-# MAIN
-# ──────────────────────────────────────────────────────────────
 if chron_file and break_file and st.button("Generate Breakdown"):
     with pdfplumber.open(chron_file) as pdf:
         rollen_map = build_rollen_map(pdf)
-    # Parsing complete, generating document...
+
     st.dataframe(pd.DataFrame([{
         "Day": d, "Scene": s, "Timing": t, "Summary": summary, "Cast": cast
     } for d, s, t, summary, cast in rows[:15]]))
@@ -421,7 +417,7 @@ if chron_file and break_file and st.button("Generate Breakdown"):
     new_doc.save(out_buffer)
     out_buffer.seek(0)
 
-    st.success("✅ Breakdown built successfully!")
+    st.success("✅ Breakdown is ready! Click below to download:")
     st.download_button(
         "📥 Download New Breakdown",
         data=out_buffer,
@@ -434,13 +430,15 @@ if chron_file and break_file and st.button("Generate Breakdown"):
         st.subheader("📝 Change Log (Preview)")
         st.text("\n".join(changelog))
 
+    if debug:
+        st.subheader("🐛 Debug Info")
         st.json({
             "rollen_map_size": len(rollen_map),
             "parsed_rows": len(rows),
             "changes_detected": len(changelog),
-            "cast_split_ratio_used": cast_split_ratio
         })
 
+        st.subheader("🔬 Super Debug")
             st.markdown(f"**Page {p['page']}**")
             with st.expander("Lines (first ~40)", expanded=False):
                 for i, t in enumerate(p["lines_first40"]):
