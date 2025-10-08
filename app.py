@@ -21,18 +21,20 @@ body, .stApp {
     background-color: #0e0e0e !important;
     color: #f5f5f5 !important;
     font-family: 'Montserrat', sans-serif;
+    font-weight: 300 !important;
 }
 
 /* Typography fixes */
 h1, h2, h3, h4, h5, h6, label, p, div, span, input, textarea, select, button {
     font-family: 'Montserrat', sans-serif !important;
+    font-weight: 300 !important;
 }
 
 /* Title */
 h1 {
     text-align: center;
     color: #f8f8f8;
-    font-weight: 700;
+    font-weight: 500;
     letter-spacing: 0.02em;
     margin-top: 1.5rem;
     margin-bottom: 1rem;
@@ -57,7 +59,7 @@ div.stButton > button {
     color: #0e0e0e !important;
     border: none !important;
     border-radius: 12px !important;
-    font-weight: 600 !important;
+    font-weight: 500 !important;
     font-size: 1rem !important;
     padding: 0.5rem 1.5rem !important;
     transition: all 0.25s ease;
@@ -90,9 +92,6 @@ div[data-testid="stSlider"] > div > div > div {
     margin: 0 auto !important;
 }
 
-/* Footer (normal scroll, bottom of content) */
-footer {visibility: hidden;}
-
 .custom-footer {
     text-align: center;
     font-size: 0.9rem;
@@ -106,7 +105,7 @@ footer {visibility: hidden;}
 a.custom-link {
     color: #ffb6c1;
     text-decoration: none;
-    font-weight: 600;
+    font-weight: 500;
 }
 
 a.custom-link:hover {
@@ -118,6 +117,20 @@ a.custom-link:hover {
 
 st.title("🎬 Makeup & SFX Breakdown Builder")
 st.caption(f"Build loaded at: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+st.markdown("""
+<div style='
+    background-color: transparent;
+    color: #ffb6c1;
+    font-family: "Montserrat", sans-serif;
+    font-weight: 500;
+    text-align: left;
+    margin-top: 0.5rem;
+    margin-bottom: 1.2rem;
+    font-size: 1.05rem;'>
+📂 Please upload both files below, then click <b>Generate Breakdown</b> to begin.
+</div>
+""", unsafe_allow_html=True)
 
 chron_file = st.file_uploader("Upload Chronologie PDF", type=["pdf"])
 break_file = st.file_uploader("Upload Previous Breakdown DOCX (template)", type=["docx"])
@@ -280,7 +293,7 @@ def parse_scene_block(page, lines, start_idx, end_idx, rollen_map, cast_split_ra
 
 def extract_scene_rows(pdf, rollen_map, cast_split_ratio=0.61, super_debug=False):
     rows = []
-    
+    dbg_pages = []
     for p_idx, page in enumerate(pdf.pages):
         words = page.extract_words() or []
         line_objs = group_words_into_lines(words, y_round=1)
@@ -357,7 +370,7 @@ def fix_fake_slashes(s: str) -> str:
 if chron_file and break_file and st.button("Generate Breakdown"):
     with pdfplumber.open(chron_file) as pdf:
         rollen_map = build_rollen_map(pdf)
-        
+        rows, dbg_pages = extract_scene_rows(pdf, rollen_map, cast_split_ratio=cast_split_ratio, super_debug=super_debug)
 
     st.subheader("🔍 Parsed Row Debug Preview (first 15)")
     st.dataframe(pd.DataFrame([{
@@ -445,13 +458,13 @@ if chron_file and break_file and st.button("Generate Breakdown"):
                     st.write(f"{i:02d}: {t}")
             with st.expander("Detected headers", expanded=True):
                 st.write(p["headers"])
-else:
-    st.info("Upload both files, then press **Generate Breakdown**.")
+#else:
+#    st.info("Upload both files, then press **Generate Breakdown**.")
 
 # Footer (placed at bottom)
 st.markdown("""
 <div class="custom-footer">
-Built with ❤️ by <a href="https://ashwinanandani.com" class="custom-link" target="_blank">a fan</a> — 
+Built with ❤️ by <a href="https://ashwinanandani.com" class="custom-link" target="_blank">a fan of the show</a> — 
 contact via WhatsApp for big issues, treat with love, and stay kind.
 </div>
 """, unsafe_allow_html=True)
