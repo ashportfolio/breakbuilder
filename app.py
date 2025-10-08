@@ -135,7 +135,10 @@ st.markdown("""
 chron_file = st.file_uploader("Upload Chronologie PDF", type=["pdf"])
 break_file = st.file_uploader("Upload Previous Breakdown DOCX (template)", type=["docx"])
 
-dev_mode = st.secrets.get("dev_mode", "true").lower() == "true"
+try:
+    dev_mode = st.secrets["dev_mode"].lower() == "true"
+except:
+    dev_mode = True
 
 if dev_mode:
     c1, c2, c3 = st.columns([1,1,2])
