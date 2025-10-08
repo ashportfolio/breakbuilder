@@ -135,10 +135,10 @@ st.markdown("""
 chron_file = st.file_uploader("Upload Chronologie PDF", type=["pdf"])
 break_file = st.file_uploader("Upload Previous Breakdown DOCX (template)", type=["docx"])
 
-dev_mode = st.secrets.get("dev_mode", True)
+dev_mode = st.secrets.get("dev_mode", "true").lower() == "true"
 
 if dev_mode:
-    c1, c2, c3 = st.columns([1, 1, 2])
+    c1, c2, c3 = st.columns([1,1,2])
     with c1:
         debug = st.checkbox("Debug Info")
     with c2:
@@ -148,7 +148,7 @@ if dev_mode:
 else:
     debug = False
     super_debug = False
-    cast_split_ratio = 0.61  # default
+    cast_split_ratio = 0.61 #default
 
 # ──────────────────────────────────────────────────────────────
 # Regex
