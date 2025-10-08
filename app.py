@@ -5,6 +5,14 @@ from docx import Document
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 import streamlit as st
+
+# ──────────────────────────────────────────────────────────────
+# Load dev_mode early to avoid NameError
+try:
+    dev_mode = st.secrets["dev_mode"].lower() == "true"
+except:
+    dev_mode = True
+
 import pandas as pd
 import datetime
 
@@ -14,8 +22,7 @@ import datetime
 st.set_page_config(page_title="Makeup & SFX Breakdown", page_icon="💋", layout="wide")
 
 # STYLING
-if dev_mode:
-    st.markdown("""
+st.markdown("""
 <style>
 /* Overall page styling */
 body, .stApp {
@@ -60,7 +67,7 @@ div.stButton > button {
     color: #0e0e0e !important;
     border: none !important;
     border-radius: 12px !important;
-    font-weight: 600 !important;
+    font-weight: 500 !important;
     font-size: 1rem !important;
     padding: 0.5rem 1.5rem !important;
     transition: all 0.25s ease;
@@ -106,7 +113,7 @@ div[data-testid="stSlider"] > div > div > div {
 a.custom-link {
     color: #ffb6c1;
     text-decoration: none;
-    font-weight: 300 !important;
+    font-weight: 500;
 }
 
 a.custom-link:hover {
@@ -119,13 +126,12 @@ a.custom-link:hover {
 st.title("🎬 Makeup & SFX Breakdown Builder")
 st.caption(f"Build loaded at: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-if dev_mode:
-    st.markdown("""
+st.markdown("""
 <div style='
     background-color: transparent;
     color: #ffb6c1;
     font-family: "Montserrat", sans-serif;
-    font-weight: 600;
+    font-weight: 500;
     text-align: left;
     margin-top: 0.5rem;
     margin-bottom: 1.2rem;
@@ -137,23 +143,13 @@ if dev_mode:
 chron_file = st.file_uploader("Upload Chronologie PDF", type=["pdf"])
 break_file = st.file_uploader("Upload Previous Breakdown DOCX (template)", type=["docx"])
 
-try:
-    dev_mode = st.secrets["dev_mode"].lower() == "true"
-except:
-    dev_mode = True
-
-if dev_mode:
-    c1, c2, c3 = st.columns([1,1,2])
-    with c1:
-        debug = st.checkbox("Debug Info")
-    with c2:
-        super_debug = st.checkbox("Super Debug (lines & headers)")
-    with c3:
-        cast_split_ratio = st.slider("Cast column split (% of page width)", 0.55, 0.85, 0.61, 0.01)
-else:
-    debug = False
-    super_debug = False
-    cast_split_ratio = 0.61 #default
+c1, c2, c3 = st.columns([1,1,2])
+with c1:
+    debug = st.checkbox("Debug Info")
+with c2:
+    super_debug = st.checkbox("Super Debug (lines & headers)")
+with c3:
+    cast_split_ratio = st.slider("Cast column split (% of page width)", 0.55, 0.85, 0.61, 0.01)
 
 # ──────────────────────────────────────────────────────────────
 # Regex
@@ -439,7 +435,7 @@ if chron_file and break_file and st.button("Generate Breakdown"):
     new_doc.save(out_buffer)
     out_buffer.seek(0)
 
-    st.success("✅ Breakdown is ready! Click below to download:")
+    st.success("✅ Breakdown built successfully!")
     st.download_button(
         "📥 Download New Breakdown",
         data=out_buffer,
@@ -450,8 +446,7 @@ if chron_file and break_file and st.button("Generate Breakdown"):
 
     if changelog:
         st.subheader("📝 Change Log (Preview)")
-        if dev_mode:
-            st.text("\n".join(changelog))
+        st.text("\n".join(changelog))
 
     if debug:
         st.subheader("🐛 Debug Info")
@@ -465,21 +460,17 @@ if chron_file and break_file and st.button("Generate Breakdown"):
     if super_debug:
         st.subheader("🔬 Super Debug")
         for p in dbg_pages[:3]:
-            if dev_mode:
-                st.markdown(f"**Page {p['page']}**")
+            st.markdown(f"**Page {p['page']}**")
             with st.expander("Lines (first ~40)", expanded=False):
                 for i, t in enumerate(p["lines_first40"]):
-                    if dev_mode:
-                        st.write(f"{i:02d}: {t}")
+                    st.write(f"{i:02d}: {t}")
             with st.expander("Detected headers", expanded=True):
-                if dev_mode:
-                    st.write(p["headers"])
+                st.write(p["headers"])
 #else:
 #    st.info("Upload both files, then press **Generate Breakdown**.")
 
 # Footer (placed at bottom)
-if dev_mode:
-    st.markdown("""
+st.markdown("""
 <div class="custom-footer">
 Built with ❤️ by <a href="https://ashwinanandani.com" class="custom-link" target="_blank">a fan of the show</a> — 
 contact via WhatsApp for big issues, treat with love, and stay kind.
