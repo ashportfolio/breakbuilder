@@ -23,9 +23,6 @@ h1 { text-align: center; color: #f8f8f8; font-weight: 500; letter-spacing: 0.02e
 [data-testid="stFileUploaderDropzone"]:hover { background-color: #222222 !important; border-color: #ffc9d9 !important; }
 div.stButton > button { background-color: #ffb6c1 !important; color: #0e0e0e !important; border: none !important; border-radius: 12px !important; font-weight: 500 !important; font-size: 1rem !important; padding: 0.5rem 1.5rem !important; transition: all 0.25s ease; }
 div.stButton > button:hover { background-color: #ffc9d9 !important; color: #000 !important; transform: translateY(-1px); }
-div[data-testid="stSlider"] > div > div > div { color: #ffb6c1 !important; }
-.css-1dp5vir .stSlider [role='slider'] { background-color: #ffb6c1 !important; }
-.stSlider > div > div > div > div[role='slider'] { background-color: #ffb6c1 !important; }
 .block-container { padding-top: 2rem !important; padding-bottom: 6rem !important; max-width: 900px !important; margin: 0 auto !important; }
 .custom-footer { text-align: center; font-size: 0.9rem; color: #aaaaaa; font-family: 'Montserrat', sans-serif; margin-top: 3rem; margin-bottom: 1rem; opacity: 0.8; }
 a.custom-link { color: #ffb6c1; text-decoration: none; font-weight: 500; }
@@ -37,7 +34,7 @@ st.title("🎬 Makeup & SFX Breakdown Builder")
 st.caption(f"Build loaded at: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
 st.markdown("""
-<div style='background-color: transparent; color: #ffb6c1; font-family: "Montserrat", sans-serif; font-weight: 500; text-align: left; margin-top: 0.5rem; margin-bottom: 1.2rem; font-size: 1.05rem;'>
+<div style='color:#ffb6c1;font-weight:500;margin:.5rem 0 1.2rem;font-size:1.05rem'>
 📂 Please upload both files below, then click <b>Generate Breakdown</b> to begin.
 </div>
 """, unsafe_allow_html=True)
@@ -62,18 +59,29 @@ HEADER_SPACE  = re.compile(rf"^\s*(\d+)\s+({SCENE_TOKEN})\b")
 TIMING_RX     = re.compile(r"\b([IA](?:\+[IA])?/[A-ZÄÖÜNTM]+|[IA][NTM])\b")
 EXTRAS_RX     = re.compile(r"(\d+)\s*Komparsen", re.IGNORECASE)
 ID_RX         = re.compile(r"\b\d{1,4}\b")
+
+# Dangling variants and helpers
 HEADER_DANGLING = re.compile(r"^\s*(\d+)\s*/\s*$")
 SCENE_ONLY      = re.compile(rf"^\s*{SCENE_TOKEN}\s*$")
 LINE_DAY         = re.compile(r"^\s*(\d+)\s*$")
 LINE_SCENE_ONLY  = re.compile(rf"^\s*({SCENE_TOKEN})\s*[,;]*\s*$")
 LINE_TIMING_ONLY = TIMING_RX
-UPPER_LOC_HINT   = re.compile(r"^[A-ZÄÖÜ0-9 \-_/]+$")  # ALL-CAPS location cue
+
+# Mid-block scene token detection (safe)
+MID_SCENE_RX    = re.compile(rf"\b({SCENE_TOKEN})\b(?=\s+\d+(?:\s*/\s*\d+)?)")
+UPPER_LOC_HINT  = re.compile(r"[A-ZÄÖÜ][A-ZÄÖÜ\- ]{6,}")
+
+# Location extractor (captures ALL-CAPS chunk right after I/T, A/N, etc.)
+LOC_RX = re.compile(
+    r"(?:\b[IA](?:\+[IA])?/[A-ZÄÖÜNTM]+|[IA][NTM])\s+([A-ZÄÖÜ][A-ZÄÖÜ\-/ ]{5,})"
+)
 
 # ──────────────────────────────────────────────────────────────
 # Cleanup helpers
 # ──────────────────────────────────────────────────────────────
 def clean_commas(s: str) -> str:
-    if not s: return ""
+    if not s:
+        return ""
     return re.sub(r"(,\s*){2,}", ", ", s).strip(" ,;/")
 
 def cleanup_docx(doc: Document) -> Document:
@@ -92,12 +100,12 @@ def cleanup_docx(doc: Document) -> Document:
     return doc
 
 # ──────────────────────────────────────────────────────────────
-# Rollen parsing (strip " - Actor" and notes)
+# Rollen parsing
 # ──────────────────────────────────────────────────────────────
 ROLE_LINE = re.compile(r"^\s*(\d{1,4})\s+(.+?)\s*$")
 
 def clean_role_label(label: str) -> str:
-    label = re.split(r"\s[-–—]\s", label, 1)[0]  # drop " - Actor"
+    label = re.split(r"\s[-–—]\s", label, 1)[0]
     label = re.sub(r"\((?:[^)]*?Krankenpfleger\*?in[^)]*|\d{1,3})\)", "", label, flags=re.I)
     return re.sub(r"\s{2,}", " ", label).strip(" -–—\u2013 ")
 
@@ -112,8 +120,7 @@ def build_rollen_map(pdf) -> dict:
         while i < len(lines):
             m = ROLE_LINE.match(lines[i])
             if not m:
-                i += 1
-                continue
+                i += 1; continue
             num, raw = m.groups()
             j = i + 1
             chunk = [raw]
@@ -123,40 +130,8 @@ def build_rollen_map(pdf) -> dict:
             if label:
                 mapping[str(int(num))] = label
             i = j
-        if mapping:
-            break
+        if mapping: break
     return mapping
-
-# ──────────────────────────────────────────────────────────────
-# Strike-through filtering (drop crossed-out words)
-# ──────────────────────────────────────────────────────────────
-def _strike_zones(page):
-    zones = []
-    for ln in page.lines:
-        x0, x1 = ln["x0"], ln["x1"]
-        y0, y1 = ln["y0"], ln["y1"]
-        length = abs(x1 - x0)
-        height = abs(y1 - y0)
-        # thin, mostly horizontal lines long enough to be strikethroughs
-        if length >= 25 and height <= 1.2:
-            y = (y0 + y1) / 2.0
-            zones.append((min(x0, x1), max(x0, x1), y))
-    return zones
-
-def _word_is_struck(w, zones, tol_y=1.5):
-    wx0, wx1 = w.get("x0", 0), w.get("x1", 0)
-    wy = (w.get("top", 0) + w.get("bottom", 0)) / 2.0
-    for zx0, zx1, zy in zones:
-        if (wx1 >= zx0 and wx0 <= zx1) and abs(wy - zy) <= tol_y:
-            return True
-    return False
-
-def extract_words_nostrike(page):
-    zones = _strike_zones(page)
-    words = page.extract_words() or []
-    if not zones:
-        return words
-    return [w for w in words if not _word_is_struck(w, zones)]
 
 # ──────────────────────────────────────────────────────────────
 # Lines & headers
@@ -175,7 +150,10 @@ def group_words_into_lines(words, y_round=1):
     return lines
 
 def normalize_line_objs(line_objs):
-    out, i, n = [], 0, len(line_objs)
+    """Merge multi-line headers such as '1 /' + '12T1' or '1' + 'I/T' + '12T1'."""
+    out = []
+    i = 0; n = len(line_objs)
+
     def combine(base_idx, take_next_k, text_builder):
         combined = dict(line_objs[base_idx])
         combined["text"] = text_builder()
@@ -184,22 +162,40 @@ def normalize_line_objs(line_objs):
             merged_words.extend(line_objs[base_idx + k]["words"])
         combined["words"] = merged_words
         return combined
+
     while i < n:
         cur_text = line_objs[i]["text"]
+
         mA = HEADER_DANGLING.match(cur_text)
-        if mA and i + 1 < n and SCENE_ONLY.match(line_objs[i + 1]["text"]):
-            day = mA.group(1); scene = line_objs[i + 1]["text"].strip().strip(",;")
-            out.append(combine(i, 1, lambda: f"{day} / {scene}")); i += 2; continue
+        if mA:
+            # allow one blank/garbage spacer before SCENE_ONLY
+            j = i + 1
+            while j < n and not SCENE_ONLY.match(line_objs[j]["text"]) and not line_objs[j]["text"].strip():
+                j += 1
+            if j < n and SCENE_ONLY.match(line_objs[j]["text"]):
+                day = mA.group(1)
+                scene = line_objs[j]["text"].strip().strip(",;")
+                merged = combine(i, j - i, lambda: f"{day} / {scene}")
+                out.append(merged); i = j + 1; continue
+
         mB = LINE_DAY.match(cur_text)
         if mB and i + 1 < n and LINE_SCENE_ONLY.match(line_objs[i + 1]["text"]):
-            day = mB.group(1); scene = line_objs[i + 1]["text"].strip().strip(",;")
+            day = mB.group(1)
+            scene = line_objs[i + 1]["text"].strip().strip(",;")
             if i + 2 < n and LINE_TIMING_ONLY.search(line_objs[i + 2]["text"]):
                 timing_txt = line_objs[i + 2]["text"].strip()
-                out.append(combine(i, 2, lambda: f"{day} / {scene} {timing_txt}")); i += 3; continue
-            out.append(combine(i, 1, lambda: f"{day} / {scene}")); i += 2; continue
+                merged = combine(i, 2, lambda: f"{day} / {scene} {timing_txt}")
+                out.append(merged); i += 3; continue
+            merged = combine(i, 1, lambda: f"{day} / {scene}")
+            out.append(merged); i += 2; continue
+
         if mB and i + 2 < n and LINE_TIMING_ONLY.search(line_objs[i + 1]["text"]) and LINE_SCENE_ONLY.match(line_objs[i + 2]["text"]):
-            day = mB.group(1); timing_txt = line_objs[i + 1]["text"].strip(); scene = line_objs[i + 2]["text"].strip().strip(",;")
-            out.append(combine(i, 2, lambda: f"{day} / {scene} {timing_txt}")); i += 3; continue
+            day = mB.group(1)
+            timing_txt = line_objs[i + 1]["text"].strip()
+            scene = line_objs[i + 2]["text"].strip().strip(",;")
+            merged = combine(i, 2, lambda: f"{day} / {scene} {timing_txt}")
+            out.append(merged); i += 3; continue
+
         out.append(line_objs[i]); i += 1
     return out
 
@@ -213,8 +209,15 @@ def find_headers(lines):
     return headers
 
 # ──────────────────────────────────────────────────────────────
-# Scene block → row
+# Scene parsing
 # ──────────────────────────────────────────────────────────────
+def fix_fake_slashes(s: str) -> str:
+    if not s: return ""
+    s = s.replace(" / ", ", ")
+    s = re.sub(r"\s+/\s+", ", ", s)
+    s = re.sub(r"\s+", " ", s)
+    return s.strip(" ,;/")
+
 def parse_scene_block(page, lines, start_idx, end_idx, rollen_map, cast_split_ratio):
     header_text = lines[start_idx]["text"]
     m = HEADER_SLASH.search(header_text) or HEADER_SPACE.search(header_text)
@@ -242,9 +245,17 @@ def parse_scene_block(page, lines, start_idx, end_idx, rollen_map, cast_split_ra
         summary = left_text[pos:].strip()
     summary = re.sub(r"^\s*,\s*", "", summary)
     summary = EXTRAS_RX.sub("", summary)
-    summary = re.sub(r"\s+/\s+", ", ", summary)  # fix spaced slashes
-    summary = re.sub(r"\s+", " ", summary).strip(" ,;/")
+    summary = fix_fake_slashes(summary)
     summary = clean_commas(summary)
+
+    # Extract first ALL-CAPS location for block grouping/borders
+    loc = ""
+    mloc = LOC_RX.search(left_text)
+    if mloc:
+        loc = mloc.group(1).strip()
+        # normalize multiple spaces and trailing numbers
+        loc = re.sub(r"\s{2,}", " ", loc)
+        loc = re.sub(r"\s+\d.*$", "", loc).strip(" -/")
 
     extras_str = ""
     m_extra = EXTRAS_RX.search(right_text)
@@ -261,13 +272,35 @@ def parse_scene_block(page, lines, start_idx, end_idx, rollen_map, cast_split_ra
     if extras_str:
         cast_text = f"{cast_text}\n{extras_str}" if cast_text else extras_str
 
-    return day, scene, timing, summary, cast_text
+    return day, scene, timing, summary, cast_text, loc
+
+def split_internal_scenes(line_objs, start_idx, end_idx, cast_cutoff):
+    cuts = [start_idx]; overrides = [None]
+    for k in range(start_idx + 1, end_idx):
+        L = line_objs[k]
+        if not any(w["x0"] < cast_cutoff for w in L["words"]):
+            continue
+        txt = L["text"]
+        m = MID_SCENE_RX.search(txt)
+        if not m: continue
+        if not UPPER_LOC_HINT.search(txt):  # must look like a location line
+            continue
+        frac = re.search(r"\b\d+\s*/\s*\d+\b", txt)
+        if frac and txt.find(m.group(1)) > frac.start():
+            continue
+        cuts.append(k); overrides.append(m.group(1))
+    cuts.append(end_idx)
+    ranges = []
+    for i in range(len(cuts) - 1):
+        s, e = cuts[i], cuts[i+1]
+        ranges.append((s, e, overrides[i]))
+    return ranges
 
 def extract_scene_rows(pdf, rollen_map, cast_split_ratio=0.61, super_debug=False):
-    rows, dbg_pages = [], []
+    rows = []
+    dbg_pages = []
     for p_idx, page in enumerate(pdf.pages):
-        # 🔍 use strike-through filtered words
-        words = extract_words_nostrike(page)
+        words = page.extract_words() or []
         line_objs = group_words_into_lines(words, y_round=1)
         line_objs = normalize_line_objs(line_objs)
         headers = find_headers(line_objs)
@@ -281,15 +314,21 @@ def extract_scene_rows(pdf, rollen_map, cast_split_ratio=0.61, super_debug=False
 
         for i, (h_idx, day, scene) in enumerate(headers):
             next_idx = headers[i+1][0] if i+1 < len(headers) else len(line_objs)
-            d, s, t, summary, cast_text = parse_scene_block(
-                page, line_objs, h_idx, next_idx, rollen_map, cast_split_ratio
-            )
-            rows.append([d, s, t, summary, cast_text])
+            cast_cutoff = page.width * cast_split_ratio
+            subranges = split_internal_scenes(line_objs, h_idx, next_idx, cast_cutoff)
+
+            for s_idx, e_idx, override_scene in subranges:
+                d, s, t, summary, cast_text, loc = parse_scene_block(
+                    page, line_objs, s_idx, e_idx, rollen_map, cast_split_ratio
+                )
+                if override_scene:
+                    s = override_scene
+                rows.append([d, s, t, summary, cast_text, loc])
 
     return rows, dbg_pages
 
 # ──────────────────────────────────────────────────────────────
-# DOCX helpers (add scene divider as TOP border on ALL-CAPS rows)
+# DOCX helpers (top/bottom borders on demand)
 # ──────────────────────────────────────────────────────────────
 def clear_row_shading(row):
     for cell in row.cells:
@@ -298,27 +337,20 @@ def clear_row_shading(row):
         if shd is not None:
             tcPr.remove(shd)
 
-def _set_cell_border(cell, where="bottom", size=24, color="000000", val="single"):
-    tcPr = cell._tc.get_or_add_tcPr()
-    tcBorders = tcPr.find(qn('w:tcBorders'))
-    if tcBorders is None:
-        tcBorders = OxmlElement('w:tcBorders')
-        tcPr.append(tcBorders)
-    edge = tcBorders.find(qn(f'w:{where}'))
-    if edge is None:
-        edge = OxmlElement(f'w:{where}')
-        tcBorders.append(edge)
-    edge.set(qn('w:val'), val)
-    edge.set(qn('w:sz'), str(size))
-    edge.set(qn('w:color'), color)
-
-def set_row_bottom_border(row, size=12, color="000000", val="single"):
+def set_row_border(row, edge="bottom", size=24, color="000000", val="single"):
     for cell in row.cells:
-        _set_cell_border(cell, "bottom", size=size, color=color, val=val)
-
-def set_row_top_border(row, size=24, color="000000", val="single"):
-    for cell in row.cells:
-        _set_cell_border(cell, "top", size=size, color=color, val=val)
+        tcPr = cell._tc.get_or_add_tcPr()
+        tcBorders = tcPr.find(qn('w:tcBorders'))
+        if tcBorders is None:
+            tcBorders = OxmlElement('w:tcBorders')
+            tcPr.append(tcBorders)
+        node = tcBorders.find(qn(f'w:{edge}'))
+        if node is None:
+            node = OxmlElement(f'w:{edge}')
+            tcBorders.append(node)
+        node.set(qn('w:val'), val)
+        node.set(qn('w:sz'), str(size))
+        node.set(qn('w:color'), color)
 
 def extract_existing_notes(docx_doc: Document) -> dict:
     out = {}
@@ -333,31 +365,20 @@ def extract_existing_notes(docx_doc: Document) -> dict:
         out[key] = {"SFX": cells[5], "Notes": cells[6]}
     return out
 
-def is_scene_header_text(txt: str) -> bool:
-    # e.g., "BERLIN - TAG", "KRANK - ZNA - SCHOCKRAUM"
-    if not txt: return False
-    if not UPPER_LOC_HINT.match(txt): return False
-    return "-" in txt or " / " not in txt  # basic cue for location line
-
-def fix_fake_slashes(s: str) -> str:
-    if not s: return ""
-    s = s.replace(" / ", ", ")
-    s = re.sub(r"\s+/\s+", ", ", s)
-    s = re.sub(r"\s+", " ", s)
-    return s.strip(" ,;/")
-
 # ──────────────────────────────────────────────────────────────
 # MAIN
 # ──────────────────────────────────────────────────────────────
 if chron_file and break_file and st.button("Generate Breakdown"):
     with pdfplumber.open(chron_file) as pdf:
         rollen_map = build_rollen_map(pdf)
-        rows, dbg_pages = extract_scene_rows(pdf, rollen_map, cast_split_ratio=cast_split_ratio, super_debug=super_debug)
+        rows, dbg_pages = extract_scene_rows(
+            pdf, rollen_map, cast_split_ratio=cast_split_ratio, super_debug=super_debug
+        )
 
     st.subheader("🔍 Parsed Row Debug Preview (first 15)")
     st.dataframe(pd.DataFrame([{
-        "Day": d, "Scene": s, "Timing": t, "Summary": summary, "Cast": cast
-    } for d, s, t, summary, cast in rows[:15]]))
+        "Day": d, "Scene": s, "Timing": t, "Summary": summary, "Cast": cast, "Location": loc
+    } for d, s, t, summary, cast, loc in rows[:15]]))
 
     try:
         old_doc = Document(break_file)
@@ -379,7 +400,8 @@ if chron_file and break_file and st.button("Generate Breakdown"):
     old_keys = set(existing.keys())
     new_keys = set()
 
-    for d, s, t, summary, cast in rows:
+    prev_loc = None
+    for idx, (d, s, t, summary, cast, loc) in enumerate(rows):
         key = (d, s)
         new_keys.add(key)
         sfx = existing.get(key, {}).get("SFX", "")
@@ -394,14 +416,17 @@ if chron_file and break_file and st.button("Generate Breakdown"):
 
         clear_row_shading(r)
 
-        # Border logic:
-        # - thin bottom border for normal rows (keeps a light grid)
-        # - heavy TOP border when this row itself is a scene header (ALL-CAPS location)
-        if is_scene_header_text(vals[3]):  # Summary column
-            set_row_top_border(r, size=30, color="000000")
-            set_row_bottom_border(r, size=12, color="000000")
-        else:
-            set_row_bottom_border(r, size=12, color="000000")
+        # ── New border logic:
+        # Draw a thick TOP line when the location changes (start of a new block).
+        if loc and loc != prev_loc:
+            set_row_border(r, edge="top", size=24, color="000000", val="single")
+        prev_loc = loc
+
+        # No bottom border here; we’ll only close the table with a bottom border on the last row.
+
+    # Close the table visually with a bottom line on the last row
+    if len(table.rows) > 1:
+        set_row_border(table.rows[-1], edge="bottom", size=24, color="000000", val="single")
 
     # 🔑 Post-process cleanup
     new_doc = cleanup_docx(new_doc)
@@ -449,7 +474,6 @@ if chron_file and break_file and st.button("Generate Breakdown"):
             with st.expander("Detected headers", expanded=True):
                 st.write(p["headers"])
 
-# Footer
 st.markdown("""
 <div class="custom-footer">
 Built with ❤️ by <a href="https://ashwinanandani.com" class="custom-link" target="_blank" style="font-weight:400">a fan of the show</a> — 
