@@ -13,105 +13,82 @@ import datetime
 # ──────────────────────────────────────────────────────────────
 st.set_page_config(page_title="Makeup & SFX Breakdown", page_icon="💋", layout="wide")
 
-# STYLING
+# STYLING – light/dark, high-contrast, and explicit fixes for uploader/debug blocks
 st.markdown("""
 <style>
-/* Overall page styling */
-body, .stApp {
-    background-color: #0e0e0e !important;
-    color: #f5f5f5 !important;
-    font-family: 'Montserrat', sans-serif;
-    font-weight: 300 !important;
-}
+:root { color-scheme: light dark; }
 
-/* Typography fixes */
-h1, h2, h3, h4, h5, h6, label, p, div, span, input, textarea, select, button {
-    font-family: 'Montserrat', sans-serif !important;
-    font-weight: 300 !important;
-}
+/* ---------- DARK THEME ---------- */
+@media (prefers-color-scheme: dark) {
+  body, .stApp { background-color: #0b0b0b !important; color: #ffffff !important; }
+  .block-container { max-width: 900px !important; margin: 0 auto !important; padding-top: 2rem !important; padding-bottom: 6rem !important; }
+  h1,h2,h3,h4,h5,h6,label,p,div,span,input,textarea,select,button { font-family: 'Montserrat', sans-serif !important; font-weight: 300 !important; color: #ffffff !important; }
+  h1 { text-align:center; color:#ffffff; font-weight:500; letter-spacing:.02em; margin:1.5rem 0 1rem; }
 
-/* Title */
-h1 {
-    text-align: center;
-    color: #f8f8f8;
-    font-weight: 500;
-    letter-spacing: 0.02em;
-    margin-top: 1.5rem;
-    margin-bottom: 1rem;
-}
-
-/* Upload boxes */
-[data-testid="stFileUploaderDropzone"] {
-    border: 2px dashed #ffb6c1 !important; /* pastel pink border */
+  /* Upload boxes */
+  [data-testid="stFileUploaderDropzone"] {
+    border: 2px dashed #ff7aa2 !important;
     border-radius: 12px !important;
-    background-color: #1c1c1c !important;
-    transition: all 0.3s ease;
+    background-color: #151515 !important;
+    color: #ffffff !important;
+  }
+  [data-testid="stFileUploaderDropzone"] * { color:#ffffff !important; }
+  [data-testid="stFileUploaderDropzone"]:hover { background-color: #1b1b1b !important; border-color: #ffa4bf !important; }
+
+  /* Buttons */
+  div.stButton > button {
+    background-color: #ff7aa2 !important; color: #0b0b0b !important; border:none !important;
+    border-radius:12px !important; font-weight:600 !important; font-size:1rem !important; padding:.5rem 1.5rem !important;
+  }
+  div.stButton > button:hover { background-color:#ffa4bf !important; color:#000 !important; transform: translateY(-1px); }
+
+  /* Slider knob */
+  .stSlider > div > div > div > div[role='slider'] { background-color:#ff7aa2 !important; }
+
+  /* Debug / JSON / code blocks */
+  pre, code, kbd, samp {
+    background:#0f0f0f !important; color:#f1f1f1 !important; border:1px solid #2a2a2a !important; border-radius:8px !important;
+  }
+  .stText, .stMarkdown, .stDataFrame, .stJson { color:#ffffff !important; }
+  .stCaption, .st-emotion-cache-1vt4y43 { color:#e5e5e5 !important; }
+
+  a.custom-link { color:#ff7aa2; }
+  a.custom-link:hover { color:#ffa4bf; text-decoration:underline; }
 }
 
-[data-testid="stFileUploaderDropzone"]:hover {
-    background-color: #222222 !important;
-    border-color: #ffc9d9 !important;
-}
+/* ---------- LIGHT THEME ---------- */
+@media (prefers-color-scheme: light) {
+  body, .stApp { background-color:#ffffff !important; color:#111111 !important; }
+  .block-container { max-width: 900px !important; margin: 0 auto !important; padding-top: 2rem !important; padding-bottom: 6rem !important; }
+  h1,h2,h3,h4,h5,h6,label,p,div,span,input,textarea,select,button { font-family:'Montserrat',sans-serif !important; font-weight:300 !important; color:#111111 !important; }
+  h1 { text-align:center; color:#111111; font-weight:600; letter-spacing:.02em; margin:1.5rem 0 1rem; }
 
-/* Buttons */
-div.stButton > button {
-    background-color: #ffb6c1 !important;
-    color: #0e0e0e !important;
-    border: none !important;
+  [data-testid="stFileUploaderDropzone"] {
+    border: 2px dashed #cc2e5d !important;
     border-radius: 12px !important;
-    font-weight: 500 !important;
-    font-size: 1rem !important;
-    padding: 0.5rem 1.5rem !important;
-    transition: all 0.25s ease;
+    background-color: #fafafa !important;
+    color: #111111 !important;
+  }
+  [data-testid="stFileUploaderDropzone"] * { color:#111111 !important; }
+  [data-testid="stFileUploaderDropzone"]:hover { background-color:#f2f2f2 !important; border-color:#e24c7b !important; }
+
+  div.stButton > button {
+    background-color:#cc2e5d !important; color:#ffffff !important; border:none !important; border-radius:12px !important;
+    font-weight:600 !important; font-size:1rem !important; padding:.5rem 1.5rem !important;
+  }
+  div.stButton > button:hover { background-color:#e24c7b !important; color:#ffffff !important; }
+
+  pre, code, kbd, samp {
+    background:#f5f5f5 !important; color:#111111 !important; border:1px solid #dddddd !important; border-radius:8px !important;
+  }
+  .stText, .stMarkdown, .stDataFrame, .stJson { color:#111111 !important; }
+
+  a.custom-link { color:#cc2e5d; }
+  a.custom-link:hover { color:#e24c7b; text-decoration:underline; }
 }
 
-div.stButton > button:hover {
-    background-color: #ffc9d9 !important;
-    color: #000 !important;
-    transform: translateY(-1px);
-}
-
-/* Sliders */
-div[data-testid="stSlider"] > div > div > div {
-    color: #ffb6c1 !important;
-}
-
-.css-1dp5vir .stSlider [role='slider'] {
-    background-color: #ffb6c1 !important;
-}
-
-.stSlider > div > div > div > div[role='slider'] {
-    background-color: #ffb6c1 !important;
-}
-
-/* Center main block */
-.block-container {
-    padding-top: 2rem !important;
-    padding-bottom: 6rem !important; /* for footer space */
-    max-width: 900px !important;
-    margin: 0 auto !important;
-}
-
-.custom-footer {
-    text-align: center;
-    font-size: 0.9rem;
-    color: #aaaaaa;
-    font-family: 'Montserrat', sans-serif;
-    margin-top: 3rem;
-    margin-bottom: 1rem;
-    opacity: 0.8;
-}
-
-a.custom-link {
-    color: #ffb6c1;
-    text-decoration: none;
-    font-weight: 500;
-}
-
-a.custom-link:hover {
-    text-decoration: underline;
-    color: #ffc9d9;
-}
+/* Footer */
+.custom-footer { text-align:center; font-size:.9rem; opacity:.85; margin-top:3rem; margin-bottom:1rem; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -121,9 +98,8 @@ st.caption(f"Build loaded at: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:
 st.markdown("""
 <div style='
     background-color: transparent;
-    color: #ffb6c1;
     font-family: "Montserrat", sans-serif;
-    font-weight: 500;
+    font-weight: 600;
     text-align: left;
     margin-top: 0.5rem;
     margin-bottom: 1.2rem;
@@ -179,8 +155,16 @@ def cleanup_docx(doc: Document) -> Document:
     return doc
 
 # ──────────────────────────────────────────────────────────────
-# Rollen parsing (page 1, two columns)
+# Rollen parsing (page 1, two columns) – character name ONLY
 # ──────────────────────────────────────────────────────────────
+def _clean_role_label_basic(label: str) -> str:
+    # Cut at actor separators (hyphen variants) and at first comma (actor lists)
+    label = re.split(r"\s[-–—]\s", label, 1)[0]
+    label = label.split(",", 1)[0]
+    # Trim bracketed ages/notes like (26) or (Krankenpfleger*in)
+    label = re.sub(r"\([^)]*\)", "", label)
+    return re.sub(r"\s{2,}", " ", label).strip(" -–—\u2013 ")
+
 def build_rollen_map(pdf) -> dict:
     rollen = {}
     try:
@@ -194,18 +178,19 @@ def build_rollen_map(pdf) -> dict:
     midpoint = page.width / 2
     cols = {"left": {}, "right": {}}
     for w in words:
-        y = round(w["top"], 0)
-        x = w["x0"]
+        y = round(w["top"], 0); x = w["x0"]
         side = "left" if x < midpoint else "right"
         cols[side].setdefault(y, []).append((x, w["text"]))
 
     def parse_col(lines_dict):
         out = {}
         for y in sorted(lines_dict):
-            parts = " ".join(t for _, t in sorted(lines_dict[y], key=lambda x: x[0]))
-            m = re.match(r"^(\d+)\s+(.+)$", parts.strip())
+            parts = " ".join(t for _, t in sorted(lines_dict[y], key=lambda x: x[0])).strip()
+            m = re.match(r"^(\d+)\s+(.+)$", parts)
             if m:
-                out[m.group(1)] = m.group(2).strip()
+                num = m.group(1)
+                raw = m.group(2).strip()
+                out[num] = _clean_role_label_basic(raw)
         return out
 
     rollen.update(parse_col(cols["left"]))
@@ -265,7 +250,7 @@ def parse_scene_block(page, lines, start_idx, end_idx, rollen_map, cast_split_ra
     summary = fix_fake_slashes(summary)
     summary = clean_commas(summary)
 
-    # Cast extraction
+    # Cast extraction (from right)
     words_in_block = []
     for L in lines[start_idx:end_idx]:
         words_in_block.extend(L["words"])
@@ -325,6 +310,7 @@ def clear_row_shading(row):
         if shd is not None:
             tcPr.remove(shd)
 
+# (kept for completeness; no longer used)
 def set_row_bottom_border(row, size=24, color="000000", val="single"):
     for cell in row.cells:
         tcPr = cell._tc.get_or_add_tcPr()
@@ -352,15 +338,13 @@ def extract_existing_notes(docx_doc: Document) -> dict:
         key = (cells[0], cells[1])
         out[key] = {"SFX": cells[5], "Notes": cells[6]}
     return out
+
 # Replace pdf-extraction slashes with commas/spaces (safe)
 def fix_fake_slashes(s: str) -> str:
     if not s:
         return ""
-    # most of the bad ones are " / " that should just be separators
     s = s.replace(" / ", ", ")
-    # extra safety: any stray spaced slashes -> comma
     s = re.sub(r"\s+/\s+", ", ", s)
-    # normalize spaces
     s = re.sub(r"\s+", " ", s)
     return s.strip(" ,;/")
 
@@ -397,11 +381,19 @@ if chron_file and break_file and st.button("Generate Breakdown"):
     old_keys = set(existing.keys())
     new_keys = set()
 
+    first_scene = True
     for d, s, t, summary, cast in rows:
         key = (d, s)
         new_keys.add(key)
         sfx = existing.get(key, {}).get("SFX", "")
         notes = existing.get(key, {}).get("Notes", "")
+
+        # Spacer row BEFORE each scene except the very first
+        if not first_scene:
+            spacer = table.add_row()
+            for c in spacer.cells: c.text = ""
+            clear_row_shading(spacer)
+        first_scene = False
 
         r = table.add_row(); cells = r.cells
         vals = [d, s, t, clean_commas(summary), clean_commas(cast), sfx, notes]
@@ -409,9 +401,8 @@ if chron_file and break_file and st.button("Generate Breakdown"):
             cells[i].text = str(vals[i])
         for j in range(len(vals), len(cells)):
             cells[j].text = ""
-
         clear_row_shading(r)
-        set_row_bottom_border(r, size=24, color="000000")
+        # Removed thick bottom border on purpose
 
     # 🔑 Post-process cleanup
     new_doc = cleanup_docx(new_doc)
@@ -458,10 +449,8 @@ if chron_file and break_file and st.button("Generate Breakdown"):
                     st.write(f"{i:02d}: {t}")
             with st.expander("Detected headers", expanded=True):
                 st.write(p["headers"])
-#else:
-#    st.info("Upload both files, then press **Generate Breakdown**.")
 
-# Footer (placed at bottom)
+# Footer
 st.markdown("""
 <div class="custom-footer">
 Built with ❤️ by <a href="https://ashwinanandani.com" class="custom-link" target="_blank">a fan of the show</a> — 
