@@ -2,458 +2,278 @@ import re
 from io import BytesIO
 import pdfplumber
 from docx import Document
-from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 import streamlit as st
 import pandas as pd
 import datetime
 
-# ──────────────────────────────────────────────────────────────
-# UI
-# ──────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────
+# UI & Styling
+# ─────────────────────────────────────────────
 st.set_page_config(page_title="Makeup & SFX Breakdown", page_icon="💋", layout="wide")
 
-# STYLING – light/dark, high-contrast, and explicit fixes for uploader/debug blocks
 st.markdown("""
 <style>
-:root { color-scheme: light dark; }
-
-/* ---------- DARK THEME ---------- */
-@media (prefers-color-scheme: dark) {
-  body, .stApp { background-color: #0b0b0b !important; color: #ffffff !important; }
-  .block-container { max-width: 900px !important; margin: 0 auto !important; padding-top: 2rem !important; padding-bottom: 6rem !important; }
-  h1,h2,h3,h4,h5,h6,label,p,div,span,input,textarea,select,button { font-family: 'Montserrat', sans-serif !important; font-weight: 300 !important; color: #ffffff !important; }
-  h1 { text-align:center; color:#ffffff; font-weight:500; letter-spacing:.02em; margin:1.5rem 0 1rem; }
-
-  /* Upload boxes */
-  [data-testid="stFileUploaderDropzone"] {
-    border: 2px dashed #ff7aa2 !important;
-    border-radius: 12px !important;
-    background-color: #151515 !important;
-    color: #ffffff !important;
-  }
-  [data-testid="stFileUploaderDropzone"] * { color:#ffffff !important; }
-  [data-testid="stFileUploaderDropzone"]:hover { background-color: #1b1b1b !important; border-color: #ffa4bf !important; }
-
-  /* Buttons */
-  div.stButton > button {
-    background-color: #ff7aa2 !important; color: #0b0b0b !important; border:none !important;
-    border-radius:12px !important; font-weight:600 !important; font-size:1rem !important; padding:.5rem 1.5rem !important;
-  }
-  div.stButton > button:hover { background-color:#ffa4bf !important; color:#000 !important; transform: translateY(-1px); }
-
-  /* Slider knob */
-  .stSlider > div > div > div > div[role='slider'] { background-color:#ff7aa2 !important; }
-
-  /* Debug / JSON / code blocks */
-  pre, code, kbd, samp {
-    background:#0f0f0f !important; color:#f1f1f1 !important; border:1px solid #2a2a2a !important; border-radius:8px !important;
-  }
-  .stText, .stMarkdown, .stDataFrame, .stJson { color:#ffffff !important; }
-  .stCaption, .st-emotion-cache-1vt4y43 { color:#e5e5e5 !important; }
-
-  a.custom-link { color:#ff7aa2; }
-  a.custom-link:hover { color:#ffa4bf; text-decoration:underline; }
+body, .stApp {
+    background-color: #0e0e0e !important;
+    color: #f5f5f5 !important;
+    font-family: 'Montserrat', sans-serif;
 }
-
-/* ---------- LIGHT THEME ---------- */
 @media (prefers-color-scheme: light) {
-  body, .stApp { background-color:#ffffff !important; color:#111111 !important; }
-  .block-container { max-width: 900px !important; margin: 0 auto !important; padding-top: 2rem !important; padding-bottom: 6rem !important; }
-  h1,h2,h3,h4,h5,h6,label,p,div,span,input,textarea,select,button { font-family:'Montserrat',sans-serif !important; font-weight:300 !important; color:#111111 !important; }
-  h1 { text-align:center; color:#111111; font-weight:600; letter-spacing:.02em; margin:1.5rem 0 1rem; }
-
-  [data-testid="stFileUploaderDropzone"] {
-    border: 2px dashed #cc2e5d !important;
-    border-radius: 12px !important;
-    background-color: #fafafa !important;
-    color: #111111 !important;
-  }
-  [data-testid="stFileUploaderDropzone"] * { color:#111111 !important; }
-  [data-testid="stFileUploaderDropzone"]:hover { background-color:#f2f2f2 !important; border-color:#e24c7b !important; }
-
-  div.stButton > button {
-    background-color:#cc2e5d !important; color:#ffffff !important; border:none !important; border-radius:12px !important;
-    font-weight:600 !important; font-size:1rem !important; padding:.5rem 1.5rem !important;
-  }
-  div.stButton > button:hover { background-color:#e24c7b !important; color:#ffffff !important; }
-
-  pre, code, kbd, samp {
-    background:#f5f5f5 !important; color:#111111 !important; border:1px solid #dddddd !important; border-radius:8px !important;
-  }
-  .stText, .stMarkdown, .stDataFrame, .stJson { color:#111111 !important; }
-
-  a.custom-link { color:#cc2e5d; }
-  a.custom-link:hover { color:#e24c7b; text-decoration:underline; }
+  body, .stApp { background-color: #ffffff !important; color: #111111 !important; }
 }
-
-/* Footer */
-.custom-footer { text-align:center; font-size:.9rem; opacity:.85; margin-top:3rem; margin-bottom:1rem; }
+[data-testid="stFileUploaderDropzone"] {
+    border: 2px dashed #ffb6c1 !important;
+    border-radius: 12px !important;
+    background-color: #1c1c1c !important;
+}
+[data-testid="stFileUploaderDropzone"]:hover {
+    background-color: #222 !important; border-color: #ffc9d9 !important;
+}
+div.stButton > button {
+    background-color: #ffb6c1 !important; color: #0e0e0e !important;
+    border-radius: 12px !important; font-weight: 500 !important;
+}
+div.stButton > button:hover { background-color: #ffc9d9 !important; color: #000 !important; }
+.block-container { max-width: 900px !important; margin: 0 auto !important; }
+.custom-footer { text-align: center; color: #aaaaaa; font-size: 0.9rem; margin-top: 3rem; }
+a.custom-link { color: #ffb6c1; text-decoration: none; }
+a.custom-link:hover { text-decoration: underline; color: #ffc9d9; }
 </style>
 """, unsafe_allow_html=True)
 
 st.title("🎬 Makeup & SFX Breakdown Builder")
-st.caption(f"Build loaded at: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-
-st.markdown("""
-<div style='
-    background-color: transparent;
-    font-family: "Montserrat", sans-serif;
-    font-weight: 600;
-    text-align: left;
-    margin-top: 0.5rem;
-    margin-bottom: 1.2rem;
-    font-size: 1.05rem;'>
-📂 Please upload both files below, then click <b>Generate Breakdown</b> to begin.
-</div>
-""", unsafe_allow_html=True)
+st.caption(f"Build loaded at {datetime.datetime.now():%Y-%m-%d %H:%M:%S}")
 
 chron_file = st.file_uploader("Upload Chronologie PDF", type=["pdf"])
-break_file = st.file_uploader("Upload Previous Breakdown DOCX (template)", type=["docx"])
+break_file = st.file_uploader("Upload Previous Breakdown DOCX", type=["docx"])
+ep7_mode = st.checkbox("EP7 layout (3-column)", value=True)
 
-c1, c2, c3 = st.columns([1,1,2])
-with c1:
-    debug = st.checkbox("Debug Info")
-with c2:
-    super_debug = st.checkbox("Super Debug (lines & headers)")
-with c3:
-    cast_split_ratio = st.slider("Cast column split (% of page width)", 0.55, 0.85, 0.61, 0.01)
+if ep7_mode:
+    col1, col2 = st.columns(2)
+    with col1: col1_col2_split = st.slider("Split Col1→Col2 (%)", 0.1, 0.35, 0.22, 0.01)
+    with col2: col2_col3_split = st.slider("Split Col2→Col3 (%)", 0.45, 0.8, 0.66, 0.01)
+else:
+    cast_split_ratio = st.slider("Cast column split", 0.55, 0.85, 0.61, 0.01)
 
-# ──────────────────────────────────────────────────────────────
+debug = st.checkbox("Debug Info")
+
+# ─────────────────────────────────────────────
 # Regex
-# ──────────────────────────────────────────────────────────────
-SCENE_TOKEN   = r"\d+(?:[A-Z]+(?:\d+)?)?"
-HEADER_SLASH  = re.compile(rf"^\s*(\d+)\s*/\s*({SCENE_TOKEN})\b")
-HEADER_SPACE  = re.compile(rf"^\s*(\d+)\s+({SCENE_TOKEN})\b")
-TIMING_RX     = re.compile(r"\b([IA](?:\+[IA])?/[A-ZÄÖÜNTM]+|[IA][NTM])\b")
-EXTRAS_RX     = re.compile(r"(\d+)\s*Komparsen", re.IGNORECASE)
-ID_RX         = re.compile(r"\b\d{1,4}\b")
+# ─────────────────────────────────────────────
+HEADER_SLASH = re.compile(r"^\s*(\d+)\s*/\s*([0-9A-Z.]+)\b")
+HEADER_SPACE = re.compile(r"^\s*(\d+)\s+([0-9A-Z.]+)\b")
+TIMING_RX = re.compile(r"\b([IA](?:\+[IA])?/[A-ZÄÖÜNTM]+|[IA][NTM])\b")
+SEITEN_RX = re.compile(r"Seiten\s*[:\-]?\s*\d+\/?\d*", re.I)
+ID_RX = re.compile(r"\b\d{1,4}\b")
+OMITTED_RX = re.compile(r"\bOMITTED\b", re.I)
+UPPERCASE_WORD_RX = re.compile(r"\b[A-ZÄÖÜ]{3,}\b")
 
-# ──────────────────────────────────────────────────────────────
-# Cleanup helpers
-# ──────────────────────────────────────────────────────────────
-def clean_commas(s: str) -> str:
-    if not s:
-        return ""
-    return re.sub(r"(,\s*){2,}", ", ", s).strip(" ,;/")
+# ─────────────────────────────────────────────
+# Helpers
+# ─────────────────────────────────────────────
+def clean_commas(s):
+    return re.sub(r"(,\s*){2,}", ", ", s).strip(" ,;/") if s else s
 
-def cleanup_docx(doc: Document) -> Document:
-    """Post-process the final doc to remove stray text and double commas"""
-    for p in doc.paragraphs:
-        if "Krankenpfeger*in" in p.text or "Krankenpfleger*in" in p.text:
-            p.text = p.text.replace("Krankenpfeger*in", "").replace("Krankenpfleger*in", "")
-        if ", ," in p.text:
-            p.text = re.sub(r"(,\s*){2,}", ", ", p.text)
-
-    for table in doc.tables:
-        for row in table.rows:
-            for cell in row.cells:
-                if "Krankenpfeger*in" in cell.text or "Krankenpfleger*in" in cell.text:
-                    cell.text = cell.text.replace("Krankenpfeger*in", "").replace("Krankenpfleger*in", "")
-                if ", ," in cell.text:
-                    cell.text = re.sub(r"(,\s*){2,}", ", ", cell.text)
+def cleanup_docx(doc):
+    for t in doc.tables:
+        for r in t.rows:
+            for c in r.cells:
+                c.text = re.sub(r"Krankenpfleger\*in|Krankenpfeger\*in", "", c.text)
+                c.text = re.sub(r"(,\s*){2,}", ", ", c.text)
     return doc
 
-# ──────────────────────────────────────────────────────────────
-# Rollen parsing (page 1, two columns) – character name ONLY
-# ──────────────────────────────────────────────────────────────
-def _clean_role_label_basic(label: str) -> str:
-    # Cut at actor separators (hyphen variants) and at first comma (actor lists)
-    label = re.split(r"\s[-–—]\s", label, 1)[0]
-    label = label.split(",", 1)[0]
-    # Trim bracketed ages/notes like (26) or (Krankenpfleger*in)
-    label = re.sub(r"\([^)]*\)", "", label)
-    return re.sub(r"\s{2,}", " ", label).strip(" -–—\u2013 ")
-
-def build_rollen_map(pdf) -> dict:
-    rollen = {}
-    try:
-        page = pdf.pages[0]
-        words = page.extract_words() or []
-    except Exception:
-        return rollen
-    if not words:
-        return rollen
-
-    midpoint = page.width / 2
-    cols = {"left": {}, "right": {}}
-    for w in words:
-        y = round(w["top"], 0); x = w["x0"]
-        side = "left" if x < midpoint else "right"
-        cols[side].setdefault(y, []).append((x, w["text"]))
-
-    def parse_col(lines_dict):
-        out = {}
-        for y in sorted(lines_dict):
-            parts = " ".join(t for _, t in sorted(lines_dict[y], key=lambda x: x[0])).strip()
-            m = re.match(r"^(\d+)\s+(.+)$", parts)
+# ─────────────────────────────────────────────
+# Rollen Parsing
+# ─────────────────────────────────────────────
+def build_rollen_map_ep7(pdf):
+    mapping = {}
+    rx = re.compile(r"^\s*(\d{1,4})\s+(.+?)\s*$")
+    for page in pdf.pages:
+        for line in (page.extract_text() or "").splitlines():
+            m = rx.match(line.strip())
             if m:
-                num = m.group(1)
-                raw = m.group(2).strip()
-                out[num] = _clean_role_label_basic(raw)
-        return out
+                mapping[m.group(1)] = m.group(2).strip()
+        if len(mapping) >= 5:
+            break
+    return mapping
 
-    rollen.update(parse_col(cols["left"]))
-    rollen.update(parse_col(cols["right"]))
-    return rollen
-
-# ──────────────────────────────────────────────────────────────
-# Lines & headers
-# ──────────────────────────────────────────────────────────────
-def group_words_into_lines(words, y_round=1):
+# ─────────────────────────────────────────────
+# Line Grouping
+# ─────────────────────────────────────────────
+def group_words_into_lines(words, y_tol=1.2):
     by_y = {}
     for w in words:
-        y = round(w.get("top", 0.0), y_round)
+        y = round(w["top"] / y_tol) * y_tol
         by_y.setdefault(y, []).append(w)
     lines = []
     for y in sorted(by_y):
-        wlist = sorted(by_y[y], key=lambda w: w.get("x0", 0.0))
-        text = " ".join(w["text"] for w in wlist if "text" in w)
+        wlist = sorted(by_y[y], key=lambda x: x["x0"])
+        text = " ".join(w["text"] for w in wlist)
         if text.strip():
-            lines.append({"y": y, "words": wlist, "text": text.strip()})
+            lines.append({"y": y, "text": text, "words": wlist})
     return lines
 
-def find_headers(lines):
+def find_headers(lines, min_gap=10):
     headers = []
+    prev_y = None
+    prev_scene = None
     for i, L in enumerate(lines):
-        t = L["text"]
-        if not TIMING_RX.search(t):
+        txt = L["text"].strip()
+        # Check header pattern
+        m = HEADER_SLASH.search(txt) or HEADER_SPACE.search(txt)
+        if not m:
             continue
-        m = HEADER_SLASH.search(t) or HEADER_SPACE.search(t)
-        if m:
-            headers.append((i, m.group(1), m.group(2)))
+        # Sanity: must have at least one uppercase word (likely location)
+        if not UPPERCASE_WORD_RX.search(txt):
+            continue
+        scene = m.group(2)
+        # Skip duplicates or too-close verticals
+        if prev_scene == scene:
+            continue
+        if prev_y is not None and abs(L["y"] - prev_y) < min_gap:
+            continue
+        headers.append((i, m.group(1), scene))
+        prev_y = L["y"]
+        prev_scene = scene
     return headers
 
-# ──────────────────────────────────────────────────────────────
-# Scene block → row
-# ──────────────────────────────────────────────────────────────
-def parse_scene_block(page, lines, start_idx, end_idx, rollen_map, cast_split_ratio):
-    header_text = lines[start_idx]["text"]
-    m = HEADER_SLASH.search(header_text) or HEADER_SPACE.search(header_text)
-    day, scene = (m.group(1), m.group(2)) if m else ("", "")
+# ─────────────────────────────────────────────
+# Column Parsing (EP7)
+# ─────────────────────────────────────────────
+def slice_columns(words, width, s12, s23):
+    c1, c2, c3 = [], [], []
+    for w in words:
+        if w["x0"] < width * s12:
+            c1.append(w)
+        elif w["x0"] < width * s23:
+            c2.append(w)
+        else:
+            c3.append(w)
+    f = lambda ws: " ".join(t["text"] for t in sorted(ws, key=lambda x: (x["top"], x["x0"])))
+    return f(c1), f(c2), f(c3)
 
-    block_text = " ".join(L["text"] for L in lines[start_idx:end_idx])
+def extract_caps_location(text):
+    if not text:
+        return ""
+    text = re.sub(SEITEN_RX, "", text)
+    text = re.sub(r"\b\d{1,4}\b", "", text)
+    # capture first uppercase phrase before lowercase
+    m = re.search(r"\b([A-ZÄÖÜ0-9][A-ZÄÖÜ0-9 \-/]+)(?=\s+[a-zäöü])", text)
+    if m:
+        return m.group(1).strip(" -_/")
+    # fallback to first uppercase sequence
+    parts = re.findall(r"[A-ZÄÖÜ0-9][A-ZÄÖÜ0-9 \-_/]{2,}", text)
+    if parts:
+        return parts[0].strip(" -_/")
+    return text.strip()
+
+# ─────────────────────────────────────────────
+# Scene Parser
+# ─────────────────────────────────────────────
+def parse_scene_block_ep7(page, lines, start, end, rollen_map, s12, s23):
+    header = lines[start]["text"]
+    m = HEADER_SLASH.search(header) or HEADER_SPACE.search(header)
+    day, scene = (m.group(1), m.group(2)) if m else ("", "")
+    words = [w for L in lines[start:end] for w in L["words"]]
+    col1, col2, col3 = slice_columns(words, page.width, s12, s23)
+    raw_block = f"{col1} {col2} {col3}"
+
+    # Skip OMITTED
+    if OMITTED_RX.search(raw_block):
+        return None
 
     # Timing
-    tm = TIMING_RX.search(block_text)
-    timing = (tm.group(1) if tm else "")
-    if len(timing) == 2 and timing[0] in "IA" and timing[1] in "NTM":
-        timing = f"{timing[0]}/{timing[1]}"
+    tmatch = TIMING_RX.search(col1)
+    timing = tmatch.group(1) if tmatch else ""
 
-    # Summary
-    summary = block_text
-    if tm:
-        pos = block_text.find(tm.group(0)) + len(tm.group(0))
-        summary = block_text[pos:].strip()
-    summary = EXTRAS_RX.sub("", summary)
-    summary = re.sub(r"\b\d{1,4}\b", "", summary)
-    summary = fix_fake_slashes(summary)
-    summary = clean_commas(summary)
+    # Clean & combine
+    col2 = re.sub(SEITEN_RX, "", col2)
+    col3 = re.sub(SEITEN_RX, "", col3)
+    col2 = re.sub(r"\b\d{1,4}\b", "", col2)
+    col3 = re.sub(r"\b\d{1,4}\b", "", col3)
 
-    # Cast extraction (from right)
-    words_in_block = []
-    for L in lines[start_idx:end_idx]:
-        words_in_block.extend(L["words"])
+    location = extract_caps_location(col2)
+    description = col3.strip()
+    summary = clean_commas(f"{location}\n{description}" if location else description)
 
-    cast_cutoff = page.width * cast_split_ratio
-    right_words = [w for w in words_in_block if w["x0"] >= cast_cutoff]
-    right_text = " ".join(w["text"] for w in sorted(right_words, key=lambda w: (w["top"], w["x0"])))
+    # Cast
+    ids = set(ID_RX.findall(raw_block))
+    cast = ", ".join(f"{i} {rollen_map[i]}" for i in sorted(ids, key=lambda x: int(x)) if i in rollen_map)
+    return day, scene, timing, summary, cast
 
-    extras_str = ""
-    m_extra = EXTRAS_RX.search(right_text)
-    if m_extra:
-        extras_str = f"{m_extra.group(1)} Komparsen"
-        right_text = EXTRAS_RX.sub("", right_text)
-
-    ids = set(ID_RX.findall(right_text))
-    valid_ids = [i for i in ids if i in rollen_map]
-    cast_names = [f"{i} {rollen_map[i]}" for i in sorted(valid_ids, key=lambda x: int(x))]
-    cast_line = clean_commas(", ".join(cast_names))
-
-    cast_text = cast_line if cast_line else ""
-    if extras_str:
-        cast_text = f"{cast_text}\n{extras_str}" if cast_text else extras_str
-
-    return day, scene, timing, summary, cast_text
-
-def extract_scene_rows(pdf, rollen_map, cast_split_ratio=0.61, super_debug=False):
+# ─────────────────────────────────────────────
+# Extraction
+# ─────────────────────────────────────────────
+def extract_scene_rows(pdf, rollen_map, s12, s23):
     rows = []
-    dbg_pages = []
-    for p_idx, page in enumerate(pdf.pages):
+    for page in pdf.pages:
         words = page.extract_words() or []
-        line_objs = group_words_into_lines(words, y_round=1)
-        headers = find_headers(line_objs)
+        lines = group_words_into_lines(words)
+        headers = find_headers(lines)
+        for i, (idx, day, scene) in enumerate(headers):
+            end = headers[i + 1][0] if i + 1 < len(headers) else len(lines)
+            parsed = parse_scene_block_ep7(page, lines, idx, end, rollen_map, s12, s23)
+            if parsed:
+                rows.append(list(parsed))
+    return rows
 
-        if super_debug:
-            dbg_pages.append({
-                "page": p_idx+1,
-                "lines_first40": [L["text"] for L in line_objs[:40]],
-                "headers": headers
-            })
+# ─────────────────────────────────────────────
+# DOCX utilities
+# ─────────────────────────────────────────────
+def extract_existing_notes(doc):
+    data = {}
+    if not doc.tables:
+        return data
+    t = doc.tables[0]
+    for r in t.rows[1:]:
+        c = [x.text.strip() for x in r.cells]
+        if len(c) >= 7:
+            data[(c[0], c[1])] = {"SFX": c[5], "Notes": c[6]}
+    return data
 
-        for i, (h_idx, day, scene) in enumerate(headers):
-            next_idx = headers[i+1][0] if i+1 < len(headers) else len(line_objs)
-            d, s, t, summary, cast_text = parse_scene_block(
-                page, line_objs, h_idx, next_idx, rollen_map, cast_split_ratio
-            )
-            rows.append([d, s, t, summary, cast_text])
-
-    return rows, dbg_pages
-
-# ──────────────────────────────────────────────────────────────
-# DOCX helpers
-# ──────────────────────────────────────────────────────────────
-def clear_row_shading(row):
-    for cell in row.cells:
-        tcPr = cell._tc.get_or_add_tcPr()
-        shd = tcPr.find(qn('w:shd'))
-        if shd is not None:
-            tcPr.remove(shd)
-
-# (kept for completeness; no longer used)
-def set_row_bottom_border(row, size=24, color="000000", val="single"):
-    for cell in row.cells:
-        tcPr = cell._tc.get_or_add_tcPr()
-        tcBorders = tcPr.find(qn('w:tcBorders'))
-        if tcBorders is None:
-            tcBorders = OxmlElement('w:tcBorders')
-            tcPr.append(tcBorders)
-        bottom = tcBorders.find(qn('w:bottom'))
-        if bottom is None:
-            bottom = OxmlElement('w:bottom')
-            tcBorders.append(bottom)
-        bottom.set(qn('w:val'), val)
-        bottom.set(qn('w:sz'), str(size))
-        bottom.set(qn('w:color'), color)
-
-def extract_existing_notes(docx_doc: Document) -> dict:
-    out = {}
-    if not docx_doc.tables:
-        return out
-    table = docx_doc.tables[0]
-    for row in table.rows[1:]:
-        cells = [c.text.strip() for c in row.cells]
-        if len(cells) < 7:
-            continue
-        key = (cells[0], cells[1])
-        out[key] = {"SFX": cells[5], "Notes": cells[6]}
-    return out
-
-# Replace pdf-extraction slashes with commas/spaces (safe)
-def fix_fake_slashes(s: str) -> str:
-    if not s:
-        return ""
-    s = s.replace(" / ", ", ")
-    s = re.sub(r"\s+/\s+", ", ", s)
-    s = re.sub(r"\s+", " ", s)
-    return s.strip(" ,;/")
-
-# ──────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────
 # MAIN
-# ──────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────
 if chron_file and break_file and st.button("Generate Breakdown"):
     with pdfplumber.open(chron_file) as pdf:
-        rollen_map = build_rollen_map(pdf)
-        rows, dbg_pages = extract_scene_rows(pdf, rollen_map, cast_split_ratio=cast_split_ratio, super_debug=super_debug)
+        rollen = build_rollen_map_ep7(pdf)
+        rows = extract_scene_rows(pdf, rollen, col1_col2_split, col2_col3_split)
 
-    st.subheader("🔍 Parsed Row Debug Preview (first 15)")
-    st.dataframe(pd.DataFrame([{
-        "Day": d, "Scene": s, "Timing": t, "Summary": summary, "Cast": cast
-    } for d, s, t, summary, cast in rows[:15]]))
+    st.dataframe(pd.DataFrame(rows, columns=["Day", "Scene", "Timing", "Summary", "Cast"]).head(15))
 
-    try:
-        old_doc = Document(break_file)
-    except Exception as e:
-        st.error(f"Could not read DOCX: {e}")
-        st.stop()
-    if not old_doc.tables:
-        st.error("The uploaded Breakdown DOCX has no tables.")
-        st.stop()
+    doc = Document(break_file)
+    existing = extract_existing_notes(doc)
+    t = doc.tables[0]
+    while len(t.rows) > 1:
+        t._tbl.remove(t.rows[1]._tr)
 
-    existing = extract_existing_notes(old_doc)
-    new_doc = Document(break_file)
-    table = new_doc.tables[0]
-
-    # clear body rows
-    while len(table.rows) > 1:
-        table._tbl.remove(table.rows[1]._tr)
-
-    old_keys = set(existing.keys())
-    new_keys = set()
-
-    first_scene = True
-    for d, s, t, summary, cast in rows:
+    first = True
+    for d, s, timing, summary, cast in rows:
         key = (d, s)
-        new_keys.add(key)
         sfx = existing.get(key, {}).get("SFX", "")
         notes = existing.get(key, {}).get("Notes", "")
+        if not first:
+            r = t.add_row()
+            for c in r.cells: c.text = ""
+        first = False
+        r = t.add_row()
+        vals = [d, s, timing, summary, cast, sfx, notes]
+        for i, v in enumerate(vals):
+            r.cells[i].text = str(v)
 
-        # Spacer row BEFORE each scene except the very first
-        if not first_scene:
-            spacer = table.add_row()
-            for c in spacer.cells: c.text = ""
-            clear_row_shading(spacer)
-        first_scene = False
-
-        r = table.add_row(); cells = r.cells
-        vals = [d, s, t, clean_commas(summary), clean_commas(cast), sfx, notes]
-        for i in range(min(len(vals), len(cells))):
-            cells[i].text = str(vals[i])
-        for j in range(len(vals), len(cells)):
-            cells[j].text = ""
-        clear_row_shading(r)
-        # Removed thick bottom border on purpose
-
-    # 🔑 Post-process cleanup
-    new_doc = cleanup_docx(new_doc)
-
-    # Change log
-    changelog = []
-    for k in sorted(new_keys - old_keys):
-        changelog.append(f"ADDED {k}")
-    for k in sorted(old_keys - new_keys):
-        changelog.append(f"REMOVED {k}")
-
-    out_buffer = BytesIO()
-    new_doc.save(out_buffer)
-    out_buffer.seek(0)
-
-    st.success("✅ Breakdown built successfully!")
-    st.download_button(
-        "📥 Download New Breakdown",
-        data=out_buffer,
-        file_name="Breakdown_filled_EP1.docx",
-        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        use_container_width=True
-    )
-
-    if changelog:
-        st.subheader("📝 Change Log (Preview)")
-        st.text("\n".join(changelog))
-
+    cleanup_docx(doc)
+    buf = BytesIO()
+    doc.save(buf)
+    buf.seek(0)
+    st.download_button("📥 Download New Breakdown", buf, "Breakdown_filled_EP7.docx",
+                       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                       use_container_width=True)
     if debug:
-        st.subheader("🐛 Debug Info")
-        st.json({
-            "rollen_map_size": len(rollen_map),
-            "parsed_rows": len(rows),
-            "changes_detected": len(changelog),
-            "cast_split_ratio_used": cast_split_ratio
-        })
+        st.json({"rows": len(rows), "rollen": len(rollen)})
 
-    if super_debug:
-        st.subheader("🔬 Super Debug")
-        for p in dbg_pages[:3]:
-            st.markdown(f"**Page {p['page']}**")
-            with st.expander("Lines (first ~40)", expanded=False):
-                for i, t in enumerate(p["lines_first40"]):
-                    st.write(f"{i:02d}: {t}")
-            with st.expander("Detected headers", expanded=True):
-                st.write(p["headers"])
-
-# Footer
 st.markdown("""
-<div class="custom-footer">
-Built with ❤️ by <a href="https://ashwinanandani.com" class="custom-link" target="_blank">a fan of the show</a> — 
-contact via WhatsApp for big issues, treat with love, and stay kind.
+<div class='custom-footer'>
+Built with ❤️ — contact if something explodes.
 </div>
 """, unsafe_allow_html=True)
